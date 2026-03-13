@@ -1,5 +1,5 @@
 {
-  "id": "02e5b096-2f82-4d9d-bc88-aec0b9ce5c0b",
+  "id": "04fd540e-891d-4f48-900c-54621b24baac",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -426,19 +426,34 @@
           "primaryKey": false,
           "notNull": true
         },
-        "type": {
-          "name": "type",
+        "category": {
+          "name": "category",
           "type": "product_type",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
-        "base_unit": {
-          "name": "base_unit",
-          "type": "unit",
+        "measure": {
+          "name": "measure",
+          "type": "product_measure",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'mass'"
+        },
+        "base_unit": {
+          "name": "base_unit",
+          "type": "base_unit",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'г'"
+        },
+        "piece_to_base": {
+          "name": "piece_to_base",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
         },
         "user_id": {
           "name": "user_id",
@@ -506,12 +521,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "variant_id": {
-          "name": "variant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "received_at": {
           "name": "received_at",
           "type": "timestamp",
@@ -525,11 +534,26 @@
           "primaryKey": false,
           "notNull": false
         },
-        "purchase_price": {
-          "name": "purchase_price",
+        "received_base": {
+          "name": "received_base",
           "type": "numeric",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": "'0'"
+        },
+        "total_cost": {
+          "name": "total_cost",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "unit_cost_base": {
+          "name": "unit_cost_base",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
         },
         "user_id": {
           "name": "user_id",
@@ -566,113 +590,9 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "product_batches_variant_id_product_variants_id_fk": {
-          "name": "product_batches_variant_id_product_variants_id_fk",
-          "tableFrom": "product_batches",
-          "tableTo": "product_variants",
-          "columnsFrom": [
-            "variant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "product_batches_user_id_user_id_fk": {
           "name": "product_batches_user_id_user_id_fk",
           "tableFrom": "product_batches",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.product_variants": {
-      "name": "product_variants",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "unit": {
-          "name": "unit",
-          "type": "unit",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "conversion_to_base": {
-          "name": "conversion_to_base",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_name": {
-          "name": "user_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "createdAt": {
-          "name": "createdAt",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "product_variants_product_id_products_id_fk": {
-          "name": "product_variants_product_id_products_id_fk",
-          "tableFrom": "product_variants",
-          "tableTo": "products",
-          "columnsFrom": [
-            "product_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "product_variants_user_id_user_id_fk": {
-          "name": "product_variants_user_id_user_id_fk",
-          "tableFrom": "product_variants",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
@@ -713,12 +633,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "variant_id": {
-          "name": "variant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "type": {
           "name": "type",
           "type": "stock_movement_type",
@@ -726,21 +640,22 @@
           "primaryKey": false,
           "notNull": true
         },
-        "quantity": {
-          "name": "quantity",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "quantity_base": {
-          "name": "quantity_base",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": true
-        },
         "reason": {
           "name": "reason",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount_base": {
+          "name": "amount_base",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "cost": {
+          "name": "cost",
+          "type": "numeric",
           "primaryKey": false,
           "notNull": false
         },
@@ -785,19 +700,6 @@
           "tableTo": "product_batches",
           "columnsFrom": [
             "batch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "stock_movements_variant_id_product_variants_id_fk": {
-          "name": "stock_movements_variant_id_product_variants_id_fk",
-          "tableFrom": "stock_movements",
-          "tableTo": "product_variants",
-          "columnsFrom": [
-            "variant_id"
           ],
           "columnsTo": [
             "id"
@@ -944,12 +846,6 @@
           "name": "preparation_category",
           "type": "preparation_category",
           "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "steps": {
-          "name": "steps",
-          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -1661,14 +1557,34 @@
     }
   },
   "enums": {
+    "public.base_unit": {
+      "name": "base_unit",
+      "schema": "public",
+      "values": [
+        "г",
+        "мл"
+      ]
+    },
     "public.product_type": {
       "name": "product_type",
       "schema": "public",
       "values": [
-        "сырье",
-        "полуфабрикат",
-        "готовый продукт",
-        "упаковка"
+        "Молочные",
+        "Сухие",
+        "Жиры",
+        "Фрукты/Ягоды",
+        "Орехи",
+        "Шоколад",
+        "Добавки",
+        "Прочее"
+      ]
+    },
+    "public.product_measure": {
+      "name": "product_measure",
+      "schema": "public",
+      "values": [
+        "mass",
+        "volume"
       ]
     },
     "public.unit": {

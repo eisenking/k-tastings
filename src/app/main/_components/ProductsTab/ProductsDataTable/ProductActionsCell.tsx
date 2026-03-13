@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -14,12 +13,14 @@ import { Button } from "@/components/ui/button";
 import { MoreHorizontal } from "lucide-react";
 import WriteOffDialogControlled from "./WriteOffDialogControlled";
 import type { Products } from "./columns";
+import type { Table } from "@tanstack/react-table";
 
 type Props = {
 	row: Products;
+	table:  Table<Products>;
 };
 
-export default function ProductActionsCell({ row }: Props) {
+export default function ProductActionsCell({ row, table }: Props) {
 	const [open, setOpen] = useState(false);
 
 	return (
@@ -33,7 +34,18 @@ export default function ProductActionsCell({ row }: Props) {
 				</DropdownMenuTrigger>
 
 				<DropdownMenuContent align="end">
-					<DropdownMenuLabel>Действия</DropdownMenuLabel>
+					<DropdownMenuLabel>Действия:</DropdownMenuLabel>
+
+					<DropdownMenuItem
+						onSelect={(e) => {
+							e.preventDefault();
+							table?.options?.meta?.onQuickAdd?.(row);
+						}}
+					>
+						Добавить
+					</DropdownMenuItem>
+
+					<DropdownMenuSeparator />
 
 					<Link href={`/product/${row.id}`}>
 						<DropdownMenuItem>История</DropdownMenuItem>

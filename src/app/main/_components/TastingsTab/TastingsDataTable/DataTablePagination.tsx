@@ -37,7 +37,7 @@ export function DataTablePagination<TData>({
               table.setPageSize(Number(value))
             }}
           >
-            <SelectTrigger className="h-8 w-[70px]">
+            <SelectTrigger className="h-8 w-17.5">
               <SelectValue placeholder={table.getState().pagination.pageSize} />
             </SelectTrigger>
             <SelectContent side="top">
@@ -49,7 +49,7 @@ export function DataTablePagination<TData>({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex w-[120px] items-center justify-center text-sm font-medium">
+        <div className="flex w-30 items-center justify-center text-sm font-medium">
           Страница {table.getState().pagination.pageIndex + 1} из{" "}
           {table.getPageCount()}
         </div>

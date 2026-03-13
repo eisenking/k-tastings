@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useForm } from "react-hook-form";
-import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
@@ -10,8 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 
 const signUpSchema = z
     .object({
@@ -32,19 +31,19 @@ const signUpSchema = z
     });
 
 export default function RegistrationForm() {
+    const router = useRouter();
     const [pending, setPending] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const router = useRouter();
 
     const form = useForm({
-    resolver: zodResolver(signUpSchema),
-    defaultValues: {
-        name: "",
-        username: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-    },
+        resolver: zodResolver(signUpSchema),
+        defaultValues: {
+            name: "",
+            username: "",
+            email: "",
+            password: "",
+            confirmPassword: "",
+        },
     });
 
     const onSubmit = async (values) => {
@@ -52,7 +51,6 @@ export default function RegistrationForm() {
 
     try {
         setPending(true);
-
         await authClient.signUp.email(
         {
             name,
@@ -62,15 +60,15 @@ export default function RegistrationForm() {
         },
         {
             onSuccess: () => {
-            router.push("/");
+                router.push("/main");
             },
             onError: (error) => {
-            console.error("Ошибка регистрации", error)
+                toast.error("Ошибка регистрации", error)
             },
         },
         )
     } catch (error) {
-        console.error("Ошибка:", error)
+        toast.error("Ошибка:", error)
     } finally {
         setPending(false);
     }
@@ -81,8 +79,8 @@ export default function RegistrationForm() {
     }
 
     return (
-        <div className="px-8 flex items-center justify-center min-h-screen">
-            <Card className="w-full max-w-md">
+        <div className="flex items-center justify-center min-h-screen">
+            <Card className="w-full min-w-75 max-w-md">
                 <CardHeader>
                     <CardTitle className="text-2xl font-bold text-center">Регистрация</CardTitle>
                     <CardDescription className="text-center">Создайте новый аккаунт</CardDescription>
@@ -95,11 +93,11 @@ export default function RegistrationForm() {
                         name="name"
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel>Имя</FormLabel>
-                            <FormControl>
-                                <Input placeholder="Введите ваше имя" {...field} />
-                            </FormControl>
-                            <FormMessage />
+                                <FormLabel>Имя</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="Введите ваше имя" autoComplete="off" {...field} />
+                                </FormControl>
+                                <FormMessage />
                             </FormItem>
                         )}
                         />
@@ -107,13 +105,13 @@ export default function RegistrationForm() {
                         control={form.control}
                         name="username"
                         render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Имя пользователя</FormLabel>
-                            <FormControl>
-                            <Input placeholder="username" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
+                            <FormItem>
+                                <FormLabel>Имя пользователя</FormLabel>
+                                    <FormControl>
+                                    <Input placeholder="username" autoComplete="off" {...field} />
+                                    </FormControl>
+                                <FormMessage />
+                            </FormItem>
                         )}
                         />
                         <FormField
@@ -121,11 +119,11 @@ export default function RegistrationForm() {
                         name="email"
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel>Электронная почта</FormLabel>
-                            <FormControl>
-                                <Input type="email" placeholder="Введите ваш email" {...field} />
-                            </FormControl>
-                            <FormMessage />
+                                <FormLabel>Электронная почта</FormLabel>
+                                <FormControl>
+                                    <Input type="email" placeholder="Введите ваш email" autoComplete="off" {...field} />
+                                </FormControl>
+                                <FormMessage />
                             </FormItem>
                         )}
                         />
@@ -134,28 +132,28 @@ export default function RegistrationForm() {
                         name="password"
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel>Пароль</FormLabel>
-                            <FormControl>
-                                <div className="relative">
-                                <Input
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="Введите пароль"
-                                    {...field}
-                                    onChange={handlePasswordChange}
-                                />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
-                                >
-                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </Button>
-                                </div>
-                            </FormControl>
-                            <FormMessage />
+                                <FormLabel>Пароль</FormLabel>
+                                <FormControl>
+                                    <div className="relative">
+                                    <Input
+                                        type={showPassword ? "text" : "password"}
+                                        placeholder="Введите пароль"
+                                        {...field}
+                                        onChange={handlePasswordChange}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                                    >
+                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </Button>
+                                    </div>
+                                </FormControl>
+                                <FormMessage /> 
                             </FormItem>
                         )}
                         />
@@ -164,11 +162,11 @@ export default function RegistrationForm() {
                         name="confirmPassword"
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel>Подтвердите пароль</FormLabel>
-                            <FormControl>
-                                <Input type="password" placeholder="Подтвердите пароль" {...field} />
-                            </FormControl>
-                            <FormMessage />
+                                <FormLabel>Подтвердите пароль</FormLabel>
+                                <FormControl>
+                                    <Input type="password" placeholder="Подтвердите пароль" {...field} />
+                                </FormControl>
+                                <FormMessage />
                             </FormItem>
                         )}
                         />

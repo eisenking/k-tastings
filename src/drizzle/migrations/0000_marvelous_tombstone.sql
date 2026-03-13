@@ -1,4 +1,6 @@
-CREATE TYPE "public"."product_type" AS ENUM('сырье', 'полуфабрикат', 'готовый продукт', 'упаковка');--> statement-breakpoint
+CREATE TYPE "public"."base_unit" AS ENUM('г', 'мл');--> statement-breakpoint
+CREATE TYPE "public"."product_type" AS ENUM('Молочные', 'Сухие', 'Жиры', 'Фрукты/Ягоды', 'Орехи', 'Шоколад', 'Добавки', 'Прочее');--> statement-breakpoint
+CREATE TYPE "public"."product_measure" AS ENUM('mass', 'volume');--> statement-breakpoint
 CREATE TYPE "public"."unit" AS ENUM('г', 'кг', 'мл', 'л', 'шт');--> statement-breakpoint
 CREATE TYPE "public"."stock_movement_type" AS ENUM('Приход', 'Списание', 'Перемещение', 'Производство');--> statement-breakpoint
 CREATE TYPE "public"."preparation_category" AS ENUM('Крема', 'Бисквиты', 'Промочки', 'Прочее');--> statement-breakpoint
@@ -64,8 +66,10 @@ CREATE TABLE "verification" (
 CREATE TABLE "products" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
-	"type" "product_type" NOT NULL,
-	"base_unit" "unit" NOT NULL,
+	"category" "product_type" NOT NULL,
+	"measure" "product_measure" DEFAULT 'mass' NOT NULL,
+	"base_unit" "base_unit" DEFAULT 'г' NOT NULL,
+	"piece_to_base" numeric,
 	"user_id" text NOT NULL,
 	"user_name" text NOT NULL,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
@@ -75,21 +79,11 @@ CREATE TABLE "products" (
 CREATE TABLE "product_batches" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"product_id" uuid NOT NULL,
-	"variant_id" uuid NOT NULL,
 	"received_at" timestamp DEFAULT now() NOT NULL,
 	"expiration_date" timestamp,
-	"purchase_price" numeric,
-	"user_id" text NOT NULL,
-	"user_name" text NOT NULL,
-	"createdAt" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "product_variants" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"product_id" uuid NOT NULL,
-	"name" text NOT NULL,
-	"unit" "unit" NOT NULL,
-	"conversion_to_base" numeric NOT NULL,
+	"received_base" numeric DEFAULT '0' NOT NULL,
+	"total_cost" numeric DEFAULT '0' NOT NULL,
+	"unit_cost_base" numeric DEFAULT '0' NOT NULL,
 	"user_id" text NOT NULL,
 	"user_name" text NOT NULL,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL
@@ -99,11 +93,10 @@ CREATE TABLE "stock_movements" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"product_id" uuid NOT NULL,
 	"batch_id" uuid,
-	"variant_id" uuid NOT NULL,
 	"type" "stock_movement_type" NOT NULL,
-	"quantity" numeric NOT NULL,
-	"quantity_base" numeric NOT NULL,
 	"reason" text,
+	"amount_base" numeric DEFAULT '0' NOT NULL,
+	"cost" numeric,
 	"user_id" text NOT NULL,
 	"user_name" text NOT NULL,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL
@@ -125,7 +118,6 @@ CREATE TABLE "recipes" (
 	"type" "recipe_type" NOT NULL,
 	"default_yield_base" numeric NOT NULL,
 	"preparation_category" "preparation_category",
-	"steps" text,
 	"note" text,
 	"is_archived" boolean DEFAULT false NOT NULL,
 	"user_id" text NOT NULL,
@@ -200,13 +192,9 @@ ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_batches" ADD CONSTRAINT "product_batches_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "product_batches" ADD CONSTRAINT "product_batches_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_batches" ADD CONSTRAINT "product_batches_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "product_variants" ADD CONSTRAINT "product_variants_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "product_variants" ADD CONSTRAINT "product_variants_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_batch_id_product_batches_id_fk" FOREIGN KEY ("batch_id") REFERENCES "public"."product_batches"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "price_history" ADD CONSTRAINT "price_history_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "price_history" ADD CONSTRAINT "price_history_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

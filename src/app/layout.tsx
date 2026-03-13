@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from '@/components/ui/theme-provider';
-import { ScreenAndUserInfo } from "@/components/ScreenAndUserInfo/ScreenAndUserInfo";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -16,7 +15,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <ThemeProvider>
                     <main className="px-4 min-h-screen flex flex-col items-center">
                         {children}
-                        <ScreenAndUserInfo />
                     </main>
                 </ThemeProvider>
                 <Toaster />

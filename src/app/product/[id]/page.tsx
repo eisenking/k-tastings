@@ -14,7 +14,7 @@ export default async function ProductPage({ params }: Props) {
 			<div>
 				<h1 className="text-xl font-semibold">{data.product.name}</h1>
 				<p className="text-sm text-muted-foreground">
-					{data.product.type} · базовая единица: {data.product.baseUnit}
+					{data.product.category} · базовая единица: {data.product.baseUnit}
 				</p>
 			</div>
 

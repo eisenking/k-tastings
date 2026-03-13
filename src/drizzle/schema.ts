@@ -2,7 +2,6 @@ export * from "./schemas/auth/auth";
 
 export * from "./schemas/products/products";
 export * from "./schemas/products/productBatches";
-export * from "./schemas/products/productVariants";
 export * from "./schemas/products/stockMovements";
 export * from "./schemas/products/priceHistory";
 

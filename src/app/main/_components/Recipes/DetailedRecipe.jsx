@@ -1,281 +1,6 @@
-// "use client";
-
-// import { useEffect, useMemo, useState } from "react";
-// import { toast } from "sonner";
-
-// import {
-//     Dialog,
-//     DialogContent,
-//     DialogHeader,
-//     DialogTitle,
-//     DialogDescription,
-// } from "@/components/ui/dialog";
-
-// import { Button } from "@/components/ui/button";
-// import { Slider } from "@/components/ui/slider";
-// import { Badge } from "@/components/ui/badge";
-// import { Separator } from "@/components/ui/separator";
-
-// import { getRecipeForDetailedView } from "@/app/actions/recipes/getRecipeForDetailedView";
-// import { produceRecipeFIFO } from "@/app/actions/recipes/produceRecipeFIFO";
-
-
-// function toNum(v, fallback = 0) {
-//     const n = Number(String(v ?? "").replace(",", "."));
-//     return Number.isFinite(n) ? n : fallback;
-// }
-
-// function formatInt(v) {
-//     const n = toNum(v, 0);
-//     return String(Math.round(n));
-// }
-
-// export default function DetailedRecipe({
-//     open,
-//     onOpenChange,
-//     recipeId,
-//     onProduced,
-// }) {
-//     const [loading, setLoading] = useState(false);
-//     const [data, setData] = useState(null);
-
-//     const defaultYield = useMemo(() => {
-//         if (!data?.recipe?.defaultYieldBase) return 1000;
-//         const v = toNum(data.recipe.defaultYieldBase, 1000);
-//         return v > 0 ? v : 1000;
-//     }, [data]);
-
-//     const [amountBase, setAmountBase] = useState(1000);
-
-//     useEffect(() => {
-//         if (!open || !recipeId) return;
-
-//         async function run() {
-//             setLoading(true);
-//             try {
-//                 const res = await getRecipeForDetailedView(recipeId);
-//                 setData(res);
-
-//                 const base = toNum(res?.recipe?.defaultYieldBase, 1000);
-//                 const min = Math.max(1000, Math.round(base || 1000));
-//                 setAmountBase(min);
-//             } catch (e) {
-//                 console.error(e);
-//                 toast.error("Не удалось загрузить техкарту");
-//                 onOpenChange?.(false);
-//             } finally {
-//                 setLoading(false);
-//             }
-//         }
-
-//         run();
-//         // eslint-disable-next-line react-hooks/exhaustive-deps
-//     }, [open, recipeId]);
-
-//     const factor = useMemo(() => {
-//         const b = defaultYield || 1000;
-//         return amountBase / b;
-//     }, [amountBase, defaultYield]);
-
-//     const computedItems = useMemo(() => {
-//         if (!data?.items) return [];
-
-//         return data.items.map((it) => {
-//             const required = toNum(it.amountBase, 0) * factor;
-//             const available = toNum(it.availableBase, 0);
-//             const shortage = Math.max(0, required - available);
-
-//             return {
-//                 ...it,
-//                 requiredBase: required,
-//                 availableBaseNum: available,
-//                 shortageBase: shortage,
-//                 ok: shortage <= 0.000001,
-//             };
-//         });
-//     }, [data, factor]);
-
-//     const canProduce = useMemo(() => {
-//         if (!data) return false;
-//         if (computedItems.length === 0) return false;
-//         return computedItems.every((i) => i.ok);
-//     }, [computedItems, data]);
-
-//     async function handleProduce() {
-//         if (!data?.recipe) return;
-
-//         try {
-//             setLoading(true);
-
-//             await produceRecipeFIFO({
-//                 recipeId: data.recipe.id,
-//                 amountBase,
-//                 expirationDate: null, // позже добавим поле/календарь
-//             });
-
-//             toast.success("Изготовлено");
-//             onProduced?.();
-//             onOpenChange?.(false);
-//         } catch (e) {
-//             console.error(e);
-//             toast.error(e?.message || "Ошибка производства");
-//         } finally {
-//             setLoading(false);
-//         }
-//     }
-
-//     const title = data?.recipe?.name || "Техкарта";
-
-//     return (
-//         <Dialog open={open} onOpenChange={onOpenChange}>
-//             <DialogContent className="max-w-4xl">
-//                 <DialogHeader>
-//                     <DialogTitle className="flex items-center gap-2">
-//                         {title}
-//                         {data?.recipe?.type ? (
-//                             <Badge variant="secondary">
-//                                 {data.recipe.type === "filling" ? "Начинка" : data.recipe.type === "preparation" ? "Заготовка" : "Ингредиент"}
-//                             </Badge>
-//                         ) : null}
-//                     </DialogTitle>
-//                     <DialogDescription>
-//                         Выбери объём. Показаны требуемые количества и доступные остатки (склад 1 / склад 2).
-//                     </DialogDescription>
-//                 </DialogHeader>
-
-//                 {loading || !data ? (
-//                     <div className="py-8 text-center text-muted-foreground">
-//                         Загрузка...
-//                     </div>
-//                 ) : (
-//                     <div className="space-y-4">
-//                         <div className="rounded-md border p-4 space-y-3">
-//                             <div className="flex items-center justify-between gap-4">
-//                                 <div className="space-y-1">
-//                                     <div className="text-sm text-muted-foreground">Объём (г)</div>
-//                                     <div className="text-2xl font-semibold tabular-nums">
-//                                         {formatInt(amountBase)}
-//                                     </div>
-//                                 </div>
-
-//                                 <div className="w-full max-w-xl">
-//                                     <Slider
-//                                         value={[amountBase]}
-//                                         min={1000}
-//                                         max={20000}
-//                                         step={100}
-//                                         onValueChange={(v) => setAmountBase(Math.max(1000, v?.[0] ?? 1000))}
-//                                     />
-//                                     <div className="mt-2 text-xs text-muted-foreground flex justify-between">
-//                                         <span>мин: 1000</span>
-//                                         <span>шаг: 100</span>
-//                                         <span>коэф: {factor.toFixed(2)}×</span>
-//                                     </div>
-//                                 </div>
-//                             </div>
-
-//                             <Separator />
-
-//                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-//                                 <div>
-//                                     <div className="text-muted-foreground">База рецепта</div>
-//                                     <div className="font-medium tabular-nums">{formatInt(defaultYield)} г</div>
-//                                 </div>
-//                                 <div>
-//                                     <div className="text-muted-foreground">Позиции</div>
-//                                     <div className="font-medium">{computedItems.length}</div>
-//                                 </div>
-//                                 <div>
-//                                     <div className="text-muted-foreground">Статус</div>
-//                                     {canProduce ? (
-//                                         <div className="font-medium text-green-600">Хватает</div>
-//                                     ) : (
-//                                         <div className="font-medium text-red-600">Не хватает</div>
-//                                     )}
-//                                 </div>
-//                             </div>
-//                         </div>
-
-//                         <div className="rounded-md border">
-//                             <div className="p-3 border-b font-medium">Состав</div>
-
-//                             <div className="divide-y">
-//                                 {computedItems.map((it) => {
-//                                     const name =
-//                                         it.refType === "product"
-//                                             ? it.product?.name || "Продукт"
-//                                             : it.childRecipe?.name || "Заготовка";
-
-//                                     const from =
-//                                         it.refType === "product"
-//                                             ? "Склад 1"
-//                                             : "Склад 2";
-
-//                                     return (
-//                                         <div key={it.id} className="p-3 flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-//                                             <div className="min-w-0 flex-1">
-//                                                 <div className="flex items-center gap-2">
-//                                                     <div className="font-medium truncate">{name}</div>
-//                                                     <Badge variant="outline">{from}</Badge>
-//                                                     {!it.ok ? <Badge variant="destructive">Не хватает</Badge> : <Badge variant="secondary">OK</Badge>}
-//                                                 </div>
-
-//                                                 {it.refType === "product" && it.product?.type ? (
-//                                                     <div className="text-xs text-muted-foreground mt-1">
-//                                                         {it.product.type}
-//                                                     </div>
-//                                                 ) : null}
-//                                             </div>
-
-//                                             <div className="grid grid-cols-3 gap-3 w-full md:w-[420px] text-sm">
-//                                                 <div>
-//                                                     <div className="text-xs text-muted-foreground">Нужно (г)</div>
-//                                                     <div className="font-medium tabular-nums">{formatInt(it.requiredBase)}</div>
-//                                                 </div>
-//                                                 <div>
-//                                                     <div className="text-xs text-muted-foreground">Доступно (г)</div>
-//                                                     <div className="font-medium tabular-nums">{formatInt(it.availableBaseNum)}</div>
-//                                                 </div>
-//                                                 <div>
-//                                                     <div className="text-xs text-muted-foreground">Дефицит (г)</div>
-//                                                     <div className={`font-medium tabular-nums ${it.ok ? "text-muted-foreground" : "text-red-600"}`}>
-//                                                         {formatInt(it.shortageBase)}
-//                                                     </div>
-//                                                 </div>
-//                                             </div>
-//                                         </div>
-//                                     );
-//                                 })}
-
-//                                 {computedItems.length === 0 ? (
-//                                     <div className="p-6 text-center text-muted-foreground">
-//                                         В составе пока нет позиций.
-//                                     </div>
-//                                 ) : null}
-//                             </div>
-//                         </div>
-
-//                         <div className="flex justify-end gap-2">
-//                             <Button variant="outline" onClick={() => onOpenChange?.(false)}>
-//                                 Закрыть
-//                             </Button>
-//                             <Button disabled={!canProduce} onClick={handleProduce}>
-//                                 Изготовить
-//                             </Button>
-//                         </div>
-//                     </div>
-//                 )}
-//             </DialogContent>
-//         </Dialog>
-//     );
-// }
-
-
 "use client";
-
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-
 import {
     Dialog,
     DialogContent,
@@ -283,7 +8,6 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
-
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
@@ -294,7 +18,6 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion";
-
 import { getRecipeTreeForDetailedView } from "@/app/actions/recipes/getRecipeTreeForDetailedView";
 import { produceRecipeFIFO } from "@/app/actions/recipes/produceRecipeFIFO";
 
@@ -360,7 +83,6 @@ export default function DetailedRecipe({
     }, [data]);
 
     const sliderMax = useMemo(() => {
-        // максимум: max(5000, defaultYield*20), не более 100000
         return clamp(Math.max(5000, Math.round(defaultYield * 20)), 5000, 100000);
     }, [defaultYield]);
 
@@ -481,7 +203,6 @@ export default function DetailedRecipe({
                 "
             >
                 <div className="flex flex-col max-h-[90vh]">
-                    {/* Header */}
                     <div className="p-4 sm:p-6 pb-3">
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2">
@@ -496,7 +217,6 @@ export default function DetailedRecipe({
                         </DialogHeader>
                     </div>
 
-                    {/* Scrollable content */}
                     <div className="px-4 sm:px-6 pb-6 overflow-y-auto space-y-4">
                         {loading || !data ? (
                             <div className="py-10 text-center text-muted-foreground">
@@ -504,7 +224,6 @@ export default function DetailedRecipe({
                             </div>
                         ) : (
                             <>
-                                {/* Top panel */}
                                 <div className="rounded-md border p-4 space-y-3">
                                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                                         <div className="space-y-1">
@@ -529,7 +248,6 @@ export default function DetailedRecipe({
                                                 <span>коэф: {factor.toFixed(2)}×</span>
                                             </div>
 
-                                            {/* Quick controls */}
                                             <div className="mt-3 flex flex-wrap gap-2">
                                                 <Button type="button" variant="outline" size="sm" onClick={() => bump(-500)} disabled={amountBase <= 1000}>
                                                     -500
@@ -584,7 +302,6 @@ export default function DetailedRecipe({
                                     </div>
                                 </div>
 
-                                {/* Composition */}
                                 <div className="rounded-md border overflow-hidden">
                                     <div className="p-3 border-b font-medium">Состав</div>
 
@@ -604,13 +321,12 @@ export default function DetailedRecipe({
                         )}
                     </div>
 
-                    {/* Footer */}
-                    <div className="px-4 sm:px-6 py-4 border-t flex flex-col sm:flex-row sm:justify-end gap-2 bg-background">
-                        <Button variant="outline" onClick={() => onOpenChange?.(false)} disabled={loading}>
-                            Закрыть
-                        </Button>
+                    <div className="px-4 sm:px-6 py-4 border-t flex flex-col sm:flex-row sm:justify-center gap-2 bg-background">
                         <Button onClick={handleProduce} disabled={!canProduce || loading || !data}>
                             Изготовить
+                        </Button>
+                        <Button variant="outline" onClick={() => onOpenChange?.(false)} disabled={loading}>
+                            Закрыть
                         </Button>
                     </div>
                 </div>

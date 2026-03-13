@@ -1,20 +1,8 @@
 "use client";
 
 import { ProductHistory } from "@/app/actions/products/getProductHistory";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@/components/ui/tabs";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
 type Props = {
@@ -33,6 +21,18 @@ function formatDate(d: Date | string | null) {
 	}).format(date);
 }
 
+const format3 = (v: number) => {
+	const n = Number(v);
+	if (!Number.isFinite(n)) return "0.000";
+	return n.toFixed(3);
+};
+
+const formatRub = (v: number) => {
+	const n = Number(v);
+	if (!Number.isFinite(n)) return "0.00";
+	return n.toFixed(2);
+};
+
 export default function ProductHistoryTabs({ data }: Props) {
 	return (
 		<Tabs defaultValue="movements" className="w-full">
@@ -42,6 +42,7 @@ export default function ProductHistoryTabs({ data }: Props) {
 				<TabsTrigger value="prices">Цены</TabsTrigger>
 			</TabsList>
 
+			{/* MOVEMENTS */}
 			<TabsContent value="movements" className="mt-4">
 				<div className="rounded-md border">
 					<Table>
@@ -50,53 +51,43 @@ export default function ProductHistoryTabs({ data }: Props) {
 								<TableHead>Дата</TableHead>
 								<TableHead>Тип</TableHead>
 								<TableHead>Партия</TableHead>
-								<TableHead>Вариант</TableHead>
-								<TableHead className="text-right">Кол-во</TableHead>
 								<TableHead className="text-right">Кол-во (base)</TableHead>
-								<TableHead className="text-right">Цена закуп</TableHead>
-								<TableHead className="text-right">Себестоимость</TableHead>
+								<TableHead className="text-right">Стоимость</TableHead>
 								<TableHead>Причина</TableHead>
 							</TableRow>
 						</TableHeader>
+
 						<TableBody>
 							{data.movements.length === 0 ? (
 								<TableRow>
-									<TableCell colSpan={9} className="h-24 text-center">
+									<TableCell colSpan={6} className="h-24 text-center">
 										Нет движений
 									</TableCell>
 								</TableRow>
 							) : (
 								data.movements.map((m) => (
 									<TableRow key={m.id}>
-										<TableCell className="whitespace-nowrap">
-											{formatDate(m.createdAt)}
-										</TableCell>
+										<TableCell className="whitespace-nowrap">{formatDate(m.createdAt)}</TableCell>
+
 										<TableCell>
 											<Badge variant={m.type === "Приход" ? "default" : "secondary"}>
 												{m.type}
 											</Badge>
 										</TableCell>
+
 										<TableCell className="whitespace-nowrap">
-											{m.batchId ? m.batchId.slice(0, 8) : "—"}
+											{m.batchId ? String(m.batchId).slice(0, 8) : "—"}
 										</TableCell>
-										<TableCell className="whitespace-nowrap">
-											{m.variantName}
+
+										<TableCell className="text-right tabular-nums">
+											{format3(m.amountBase)} {data.product.baseUnit}
 										</TableCell>
-										<TableCell className="text-right">
-											{m.quantity.toFixed(3)} {m.unit}
+
+										<TableCell className="text-right tabular-nums">
+											{m.cost != null ? `${formatRub(m.cost)} руб.` : "—"}
 										</TableCell>
-										<TableCell className="text-right">
-											{m.quantityBase.toFixed(3)} {data.product.baseUnit}
-										</TableCell>
-										<TableCell className="text-right">
-											{m.purchasePrice != null ? `${m.purchasePrice} руб.` : "—"}
-										</TableCell>
-										<TableCell className="text-right">
-											{m.cost != null ? `${m.cost.toFixed(2)} руб.` : "—"}
-										</TableCell>
-										<TableCell className="max-w-65 truncate">
-											{m.reason ?? "—"}
-										</TableCell>
+
+										<TableCell className="max-w-65 truncate">{m.reason ?? "—"}</TableCell>
 									</TableRow>
 								))
 							)}
@@ -105,19 +96,21 @@ export default function ProductHistoryTabs({ data }: Props) {
 				</div>
 			</TabsContent>
 
+			{/* BATCHES */}
 			<TabsContent value="batches" className="mt-4">
 				<div className="rounded-md border">
 					<Table>
 						<TableHeader>
 							<TableRow>
 								<TableHead>Партия</TableHead>
-								<TableHead>Приход</TableHead>
+								<TableHead>Создана</TableHead>
 								<TableHead>Годен до</TableHead>
-								<TableHead>Вариант</TableHead>
+								<TableHead className="text-right">Приход (base)</TableHead>
 								<TableHead className="text-right">Остаток (base)</TableHead>
-								<TableHead className="text-right">Цена закуп</TableHead>
+								<TableHead className="text-right">Себестоимость</TableHead>
 							</TableRow>
 						</TableHeader>
+
 						<TableBody>
 							{data.batches.length === 0 ? (
 								<TableRow>
@@ -129,22 +122,27 @@ export default function ProductHistoryTabs({ data }: Props) {
 								data.batches.map((b) => (
 									<TableRow key={b.batchId}>
 										<TableCell className="whitespace-nowrap">
-											{b.batchId.slice(0, 8)}
+											{String(b.batchId).slice(0, 8)}
 										</TableCell>
-										<TableCell className="whitespace-nowrap">
-											{formatDate(b.receivedAt)}
-										</TableCell>
+
+										<TableCell className="whitespace-nowrap">{formatDate(b.createdAt)}</TableCell>
+
 										<TableCell className="whitespace-nowrap">
 											{formatDate(b.expirationDate)}
 										</TableCell>
-										<TableCell className="whitespace-nowrap">
-											{b.variantName} ({b.unit})
+
+										<TableCell className="text-right tabular-nums">
+											{format3(b.receivedBase)} {data.product.baseUnit}
 										</TableCell>
-										<TableCell className="text-right">
-											{b.remainingBase.toFixed(3)} {data.product.baseUnit}
+
+										<TableCell className="text-right tabular-nums">
+											{format3(b.remainingBase)} {data.product.baseUnit}
 										</TableCell>
-										<TableCell className="text-right">
-											{b.purchasePrice != null ? `${b.purchasePrice} руб.` : "—"}
+
+										<TableCell className="text-right tabular-nums">
+											{b.unitCostBase != null
+												? `${formatRub(b.unitCostBase)} руб./${data.product.baseUnit}`
+												: "—"}
 										</TableCell>
 									</TableRow>
 								))
@@ -154,6 +152,7 @@ export default function ProductHistoryTabs({ data }: Props) {
 				</div>
 			</TabsContent>
 
+			{/* PRICES */}
 			<TabsContent value="prices" className="mt-4">
 				<div className="rounded-md border">
 					<Table>
@@ -163,6 +162,7 @@ export default function ProductHistoryTabs({ data }: Props) {
 								<TableHead className="text-right">Цена</TableHead>
 							</TableRow>
 						</TableHeader>
+
 						<TableBody>
 							{data.priceHistory.length === 0 ? (
 								<TableRow>
@@ -173,12 +173,8 @@ export default function ProductHistoryTabs({ data }: Props) {
 							) : (
 								data.priceHistory.map((p) => (
 									<TableRow key={p.id}>
-										<TableCell className="whitespace-nowrap">
-											{formatDate(p.validFrom)}
-										</TableCell>
-										<TableCell className="text-right">
-											{p.price} руб.
-										</TableCell>
+										<TableCell className="whitespace-nowrap">{formatDate(p.validFrom)}</TableCell>
+										<TableCell className="text-right tabular-nums">{formatRub(p.price)} руб.</TableCell>
 									</TableRow>
 								))
 							)}

@@ -12,6 +12,10 @@ function Accordion({
   return <AccordionPrimitive.Root data-slot="accordion" {...props} />
 }
 
+
+// last:border-b-0
+
+
 function AccordionItem({
   className,
   ...props
@@ -19,7 +23,7 @@ function AccordionItem({
   return (
     <AccordionPrimitive.Item
       data-slot="accordion-item"
-      className={cn("border-b last:border-b-0", className)}
+      className={cn("border-b ", className)}
       {...props}
     />
   )

@@ -1,16 +1,24 @@
-import { pgTable, pgEnum, text } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, text, numeric } from "drizzle-orm/pg-core";
 import { id, createdAt, updatedAt } from "../../schemaHelpers";
 import { user } from "../auth/auth";
 
-export const productTypeEnum = pgEnum("product_type", [
-    "молочные продукты",
-    "сухие ингредиенты",
-    "шоколад и какао",
-    "фрукты, ягоды и орехи",
-    "жиры",
-    "добавки и ароматизаторы",
-    "прочее",
+export const productCategoryEnum = pgEnum("product_type", [
+    "Молочные",
+    "Сухие", 
+    "Жиры",
+    "Фрукты/Ягоды",
+    "Орехи",
+    "Шоколад",
+    "Добавки", 
+    "Прочее",
 ]);
+
+export const productMeasureEnum = pgEnum("product_measure", [
+    "mass",
+    "volume",
+]);
+
+export const baseUnitEnum = pgEnum("base_unit", ["г", "мл"]);
 
 export const unitEnum = pgEnum("unit", [
     "г",
@@ -22,9 +30,11 @@ export const unitEnum = pgEnum("unit", [
 
 export const ProductsTable = pgTable("products", {
     id,
-    name: text("name").notNull(),
-    type: productTypeEnum("type").notNull(), 
-    baseUnit: unitEnum("base_unit").notNull(), 
+    name: text("name").notNull(), 
+    category: productCategoryEnum("category").notNull(),
+    measure: productMeasureEnum("measure").default("mass").notNull(),
+    baseUnit: baseUnitEnum("base_unit").default("г").notNull(),
+    pieceToBase: numeric("piece_to_base"),
     userId: text("user_id").notNull().references(() => user.id),
     userName: text("user_name").notNull(),
     createdAt,

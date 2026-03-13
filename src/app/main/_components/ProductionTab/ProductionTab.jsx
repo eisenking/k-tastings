@@ -1,22 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { format } from "date-fns";
-import { ru } from "date-fns/locale";
-import { CalendarIcon, RefreshCcw } from "lucide-react";
+import { RefreshCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
-
-import { Calendar } from "@/components/ui/calendar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import {
     Accordion,
@@ -25,47 +16,22 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 
-// actions
 import { getRecipesByType } from "@/app/actions/recipes/getRecipesByType";
 import { getRecipeGraphForFillings } from "@/app/actions/production/getRecipeGraphForFillings";
 import { getProducts } from "@/app/actions/products/getProducts";
 import { getProductStockMap } from "@/app/actions/production/getProductStockMap";
 import { getPrepStockMap } from "@/app/actions/production/getPrepStockMap";
+import { getFillingStockMap } from "@/app/actions/production/getFillingStockMap";
 
-// -------- helpers --------
-function toNum(v, fallback = 0) {
-    const n = Number(String(v ?? "").replace(",", "."));
-    return Number.isFinite(n) ? n : fallback;
-}
+import { toNum, fmtG, fmtKgFromG, formatRangeLabel, cx } from "./utils/format";
 
-function fmtG(v) {
-    const n = toNum(v, 0);
-    return `${Math.round(n)} г`;
-}
+import DateRangePicker from "./components/DateRangePicker";
+import PreparationsRow from "./components/PreparationsRow";
+import ProductsRow from "./components/ProductsRow";
+import { generateMockOrdersWeek } from "./utils/mockData";
 
-function fmtKgFromG(v) {
-    const kg = toNum(v, 0) / 1000;
-    return `${kg.toFixed(2)} кг`;
-}
+const PREP_TABS = ["Крема", "Бисквиты", "Промочки", "Прочее"];
 
-function cx(...xs) {
-    return xs.filter(Boolean).join(" ");
-}
-
-function formatRangeLabel(range) {
-    if (!range?.from) return "Выбери дату";
-    if (!range?.to) return format(range.from, "dd.MM.yyyy", { locale: ru });
-    const a = format(range.from, "dd.MM.yyyy", { locale: ru });
-    const b = format(range.to, "dd.MM.yyyy", { locale: ru });
-    return a === b ? a : `${a} — ${b}`;
-}
-
-// -------- MOCK ORDERS (пока) --------
-const MOCK_ORDERS = [
-    { date: "2026-11-17", recipeId: "r_red_velvet", kg: 5 },
-    { date: "2026-11-17", recipeId: "r_honey", kg: 2 },
-    { date: "2026-11-18", recipeId: "r_red_velvet", kg: 1.5 },
-];
 
 // -------- core: PLAN A --------
 // A: сначала закрываем заготовками склад2, а в продукты идёт только дефицит
@@ -87,8 +53,12 @@ function buildPlanA({
         map.set(key, (map.get(key) || 0) + val);
     }
 
-    const prepStock = new Map(Object.entries(prepStockBase || {}).map(([k, v]) => [k, toNum(v, 0)]));
-    const productStock = new Map(Object.entries(productStockBase || {}).map(([k, v]) => [k, toNum(v, 0)]));
+    const prepStock = new Map(
+        Object.entries(prepStockBase || {}).map(([k, v]) => [k, toNum(v, 0)])
+    );
+    const productStock = new Map(
+        Object.entries(productStockBase || {}).map(([k, v]) => [k, toNum(v, 0)])
+    );
 
     // 1) агрегируем заказы
     for (const o of ordersInRange) {
@@ -185,34 +155,7 @@ function buildPlanA({
     };
 }
 
-// -------- UI: DateRangePicker --------
-function DateRangePicker({ value, onChange }) {
-    return (
-        <Popover>
-            <PopoverTrigger asChild>
-                <Button variant="outline" className="justify-start gap-2 w-full sm:w-[260px]">
-                    <CalendarIcon className="h-4 w-4" />
-                    <span className={cx(!value?.from && "text-muted-foreground")}>
-                        {formatRangeLabel(value)}
-                    </span>
-                </Button>
-            </PopoverTrigger>
 
-            <PopoverContent className="w-auto p-2" align="end">
-                <Calendar
-                    mode="range"
-                    selected={value}
-                    onSelect={(range) => onChange?.(range || { from: undefined, to: undefined })}
-                    numberOfMonths={2}
-                    locale={ru}
-                    initialFocus
-                />
-            </PopoverContent>
-        </Popover>
-    );
-}
-
-// -------- ProductionTab --------
 export default function ProductionTab() {
     const [range, setRange] = useState(() => {
         const d = new Date();
@@ -225,8 +168,9 @@ export default function ProductionTab() {
     const [recipeGraph, setRecipeGraph] = useState({ recipes: [], items: [] });
 
     // ✅ реальные остатки
-    const [stock1, setStock1] = useState({});
-    const [stock2, setStock2] = useState({});
+    const [stock1, setStock1] = useState({}); // products
+    const [stock2, setStock2] = useState({}); // preps
+    const [stock3, setStock3] = useState({}); // fillings (готовые начинки)
 
     async function loadAll() {
         setLoading(true);
@@ -239,10 +183,11 @@ export default function ProductionTab() {
             const fillingsList = Array.isArray(fillings) ? fillings : [];
             const fillingIds = fillingsList.map((x) => x.id);
 
-            const [graph, s1, s2] = await Promise.all([
+            const [graph, s1, s2, s3] = await Promise.all([
                 getRecipeGraphForFillings({ fillingIds }),
                 getProductStockMap(),
                 getPrepStockMap(),
+                getFillingStockMap(),
             ]);
 
             setProducts(Array.isArray(p) ? p : []);
@@ -250,6 +195,7 @@ export default function ProductionTab() {
 
             setStock1(s1 || {});
             setStock2(s2 || {});
+            setStock3(s3 || {});
         } catch (e) {
             console.error(e);
         } finally {
@@ -293,6 +239,11 @@ export default function ProductionTab() {
         return m;
     }, [recipeGraph]);
 
+    // ✅ мок заказов (на неделю от сегодня)
+    const MOCK_ORDERS = useMemo(() => {
+        return generateMockOrdersWeek(recipesById);
+    }, [recipesById]);
+
     // orders in range (mock)
     const ordersInRange = useMemo(() => {
         if (!range?.from) return [];
@@ -303,44 +254,56 @@ export default function ProductionTab() {
         const toTS = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999).getTime();
 
         return MOCK_ORDERS.filter((o) => {
-            const d = new Date(o.date);
-            const ts = d.getTime();
+            const ts = new Date(o.date).getTime();
             return ts >= fromTS && ts <= toTS;
         });
-    }, [range]);
+    }, [range, MOCK_ORDERS]);
 
+    // ✅ “Заказано на период” + “готовые начинки” + “к производству”
     const ordersSummary = useMemo(() => {
-        const m = new Map();
+        const orderedGByRecipe = new Map();
+
         for (const o of ordersInRange) {
-            m.set(o.recipeId, (m.get(o.recipeId) || 0) + toNum(o.kg, 0));
+            const grams = toNum(o.kg, 0) * 1000;
+            if (!o.recipeId || grams <= 0) continue;
+            orderedGByRecipe.set(o.recipeId, (orderedGByRecipe.get(o.recipeId) || 0) + grams);
         }
-        return Array.from(m.entries())
-            .map(([recipeId, kg]) => ({
+
+        const rows = Array.from(orderedGByRecipe.entries()).map(([recipeId, orderedG]) => {
+            const readyG = toNum(stock3?.[recipeId], 0);
+            const toProduceG = Math.max(0, orderedG - readyG);
+
+            return {
                 recipeId,
-                kg,
                 name: recipesById.get(recipeId)?.name || recipeId,
-            }))
-            .sort((a, b) => b.kg - a.kg);
-    }, [ordersInRange, recipesById]);
+                orderedG,
+                readyG,
+                toProduceG,
+            };
+        });
+
+        rows.sort((a, b) => b.orderedG - a.orderedG);
+        return rows;
+    }, [ordersInRange, recipesById, stock3]);
+
+    // ✅ в план считаем только дефицит по начинкам
+    const planOrdersInRange = useMemo(() => {
+        return ordersSummary
+            .filter((x) => x.toProduceG > 0)
+            .map((x) => ({
+                recipeId: x.recipeId,
+                kg: x.toProduceG / 1000,
+            }));
+    }, [ordersSummary]);
 
     const plan = useMemo(() => {
         return buildPlanA({
-            ordersInRange,
+            ordersInRange: planOrdersInRange,
             recipesById,
             prepStockBase: stock2,
             productStockBase: stock1,
         });
-    }, [ordersInRange, recipesById, stock1, stock2]);
-
-    const rowsFillings = useMemo(() => {
-        return Array.from(plan.needFillings.entries())
-            .map(([id, grams]) => ({
-                id,
-                name: recipesById.get(id)?.name || id,
-                grams,
-            }))
-            .sort((a, b) => b.grams - a.grams);
-    }, [plan, recipesById]);
+    }, [planOrdersInRange, recipesById, stock1, stock2]);
 
     const rowsPreps = useMemo(() => {
         const ids = new Set([
@@ -354,8 +317,11 @@ export default function ProductionTab() {
                 const used = plan.usedPreps.get(id) || 0;
                 const deficit = plan.deficitPreps.get(id) || 0;
 
-                const name = recipesById.get(id)?.name || id;
-                return { id, name, need, used, deficit };
+                const r = recipesById.get(id);
+                const name = r?.name || id;
+                const category = r?.preparationCategory || "Прочее";
+
+                return { id, name, category, need, used, deficit };
             })
             .sort((a, b) => b.deficit - a.deficit);
     }, [plan, recipesById]);
@@ -378,21 +344,57 @@ export default function ProductionTab() {
             .sort((a, b) => b.deficit - a.deficit);
     }, [plan, productNameById, stock1]);
 
+    const totalOrderedG = useMemo(() => {
+        return ordersSummary.reduce((a, x) => a + x.orderedG, 0);
+    }, [ordersSummary]);
+
+    const totalReadyG = useMemo(() => {
+        return ordersSummary.reduce((a, x) => a + x.readyG, 0);
+    }, [ordersSummary]);
+
+    const totalToProduceG = useMemo(() => {
+        return ordersSummary.reduce((a, x) => a + x.toProduceG, 0);
+    }, [ordersSummary]);
+
+    const prepTabsData = useMemo(() => {
+        const byCat = new Map();
+        for (const cat of PREP_TABS) byCat.set(cat, []);
+
+        for (const r of rowsPreps) {
+            const cat = PREP_TABS.includes(r.category) ? r.category : "Прочее";
+            byCat.get(cat).push(r);
+        }
+
+        const totalsByCat = new Map();
+        for (const cat of PREP_TABS) {
+            const rows = byCat.get(cat) || [];
+            totalsByCat.set(cat, {
+                need: rows.reduce((a, x) => a + x.need, 0),
+                deficit: rows.reduce((a, x) => a + x.deficit, 0),
+                count: rows.length,
+            });
+        }
+
+        return { byCat, totalsByCat };
+    }, [rowsPreps]);
+
     return (
         <div className="space-y-4">
-            <Card>
+            <Card className="py-0">
                 <CardContent className="p-4 space-y-3">
-                    <div className="flex flex-col md:flex-row md:items-end gap-3 justify-between">
-                        <div>
+                    <div className="flex flex-col md:flex-row md:items-end gap-3 justify-center">
+                        {/* <div>
                             <div className="text-lg font-semibold">Производство</div>
                             <div className="text-sm text-muted-foreground">
                                 Режим A: заготовки со склада 2 сначала закрывают потребность, сырьё считаем только на дефицит.
+                                <br />
+                                Начинки: учитываем готовые остатки и считаем производство только на нехватку.
                             </div>
-                        </div>
+                        </div> */}
 
                         <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
                             <div className="space-y-1">
-                                <div className="text-xs text-muted-foreground">Период</div>
+                                {/* <div className="text-xs text-muted-foreground">Период</div> */}
                                 <DateRangePicker value={range} onChange={setRange} />
                             </div>
 
@@ -423,22 +425,45 @@ export default function ProductionTab() {
                     <div className="space-y-2">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                             <div className="font-medium">Заказано на период</div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <Badge variant="outline">{formatRangeLabel(range)}</Badge>
                                 {loading ? <Badge variant="secondary">загрузка…</Badge> : null}
                                 <Badge variant="secondary">{`склад1: ${Object.keys(stock1).length}`}</Badge>
                                 <Badge variant="secondary">{`склад2: ${Object.keys(stock2).length}`}</Badge>
+                                <Badge variant="secondary">{`начинки: ${Object.keys(stock3).length}`}</Badge>
                             </div>
                         </div>
 
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary">заказано: {fmtKgFromG(totalOrderedG)}</Badge>
+                            <Badge variant="outline">готово: {fmtKgFromG(totalReadyG)}</Badge>
+                            <Badge variant="destructive">к производству: {fmtKgFromG(totalToProduceG)}</Badge>
+                        </div>
+
                         {ordersSummary.length === 0 ? (
-                            <div className="text-sm text-muted-foreground">Нет заказов (пока мок)</div>
+                            <div className="text-sm text-muted-foreground">
+                                Нет заказов (мок на неделю, но выбранный период пуст)
+                            </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 {ordersSummary.map((x) => (
-                                    <div key={x.recipeId} className="rounded-md border p-3 flex items-center justify-between">
-                                        <div className="font-medium">{x.name}</div>
-                                        <Badge variant="secondary">{`${x.kg.toFixed(2)} кг`}</Badge>
+                                    <div
+                                        key={x.recipeId}
+                                        className="rounded-md border p-3 space-y-2"
+                                    >
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="font-medium">{x.name}</div>
+                                            <Badge variant="secondary">{fmtKgFromG(x.orderedG)}</Badge>
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Badge variant="outline">готово: {fmtKgFromG(x.readyG)}</Badge>
+                                            {x.toProduceG > 0 ? (
+                                                <Badge variant="destructive">к произв.: {fmtKgFromG(x.toProduceG)}</Badge>
+                                            ) : (
+                                                <Badge variant="secondary">ок</Badge>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -447,31 +472,9 @@ export default function ProductionTab() {
                 </CardContent>
             </Card>
 
-            <Accordion type="multiple" defaultValue={["fillings", "preps", "products"]} className="space-y-2">
-                <AccordionItem value="fillings" className="border rounded-md">
-                    <AccordionTrigger className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                            <div className="font-semibold">Нужно начинок</div>
-                            <Badge variant="secondary">
-                                {fmtKgFromG(rowsFillings.reduce((a, x) => a + x.grams, 0))}
-                            </Badge>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="p-3">
-                        {rowsFillings.length === 0 ? (
-                            <div className="text-sm text-muted-foreground">Пусто</div>
-                        ) : (
-                            <div className="space-y-2">
-                                {rowsFillings.map((r) => (
-                                    <Row3 key={r.id} title={r.name} aLabel="нужно" a={r.grams} />
-                                ))}
-                            </div>
-                        )}
-                    </AccordionContent>
-                </AccordionItem>
-
+            <Accordion type="multiple" className="space-y-2">
                 <AccordionItem value="preps" className="border rounded-md">
-                    <AccordionTrigger className="px-3 py-2">
+                    <AccordionTrigger className="px-3 py-2  justify-center">
                         <div className="flex items-center gap-2 flex-wrap">
                             <div className="font-semibold">Заготовки (склад 2)</div>
                             <Badge variant="secondary">
@@ -482,27 +485,78 @@ export default function ProductionTab() {
                             </Badge>
                         </div>
                     </AccordionTrigger>
+
                     <AccordionContent className="p-3">
                         {rowsPreps.length === 0 ? (
                             <div className="text-sm text-muted-foreground">Пусто</div>
                         ) : (
-                            <div className="space-y-2">
-                                {rowsPreps.map((r) => (
-                                    <RowPrep
-                                        key={r.id}
-                                        title={r.name}
-                                        need={r.need}
-                                        used={r.used}
-                                        deficit={r.deficit}
-                                    />
-                                ))}
-                            </div>
+                            <Tabs defaultValue={PREP_TABS[0]} className="w-full">
+                                <TabsList className="mb-3 flex flex-wrap h-auto">
+                                    {PREP_TABS.map((cat) => {
+                                        const t = prepTabsData.totalsByCat.get(cat) || {
+                                            need: 0,
+                                            deficit: 0,
+                                            count: 0,
+                                        };
+
+                                        return (
+                                            <TabsTrigger
+                                                key={cat}
+                                                value={cat}
+                                                className="gap-2"
+                                            >
+                                                {cat}
+                                                {t.deficit > 0 ? (
+                                                    <Badge variant="destructive" className="ml-1">
+                                                        {fmtKgFromG(t.deficit)}
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="secondary" className="ml-1">
+                                                        {t.count}
+                                                    </Badge>
+                                                )}
+                                            </TabsTrigger>
+                                        );
+                                    })}
+                                </TabsList>
+
+                                {PREP_TABS.map((cat) => {
+                                    const rows = prepTabsData.byCat.get(cat) || [];
+                                    const totalNeed = rows.reduce((a, x) => a + x.need, 0);
+                                    const totalDeficit = rows.reduce((a, x) => a + x.deficit, 0);
+
+                                    return (
+                                        <TabsContent key={cat} value={cat} className="space-y-2">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Badge variant="secondary">нужно: {fmtKgFromG(totalNeed)}</Badge>
+                                                <Badge variant="outline">произвести: {fmtKgFromG(totalDeficit)}</Badge>
+                                            </div>
+
+                                            {rows.length === 0 ? (
+                                                <div className="text-sm text-muted-foreground">Нет заготовок</div>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    {rows.map((r) => (
+                                                        <PreparationsRow
+                                                            key={r.id}
+                                                            title={r.name}
+                                                            need={r.need}
+                                                            used={r.used}
+                                                            deficit={r.deficit}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </TabsContent>
+                                    );
+                                })}
+                            </Tabs>
                         )}
                     </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="products" className="border rounded-md">
-                    <AccordionTrigger className="px-3 py-2">
+                    <AccordionTrigger className="px-3 py-2 justify-center">
                         <div className="flex items-center gap-2 flex-wrap">
                             <div className="font-semibold">Продукты (склад 1)</div>
                             <Badge variant="secondary">
@@ -519,7 +573,7 @@ export default function ProductionTab() {
                         ) : (
                             <div className="space-y-2">
                                 {rowsProducts.map((r) => (
-                                    <RowProduct
+                                    <ProductsRow
                                         key={r.id}
                                         title={r.name}
                                         need={r.need}
@@ -532,53 +586,6 @@ export default function ProductionTab() {
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
-        </div>
-    );
-}
-
-function Row3({ title, aLabel, a }) {
-    return (
-        <div className="rounded-md border p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div className="font-medium">{title}</div>
-            <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
-                <Badge variant="secondary">
-                    {aLabel}: {fmtG(a)}
-                </Badge>
-            </div>
-        </div>
-    );
-}
-
-function RowPrep({ title, need, used, deficit }) {
-    return (
-        <div className="rounded-md border p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div className="font-medium">{title}</div>
-            <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
-                <Badge variant="secondary">нужно: {fmtG(need)}</Badge>
-                <Badge variant="outline">закрыли со склада: {fmtG(used)}</Badge>
-                {deficit > 0 ? (
-                    <Badge variant="destructive">произвести: {fmtG(deficit)}</Badge>
-                ) : (
-                    <Badge variant="secondary">ок</Badge>
-                )}
-            </div>
-        </div>
-    );
-}
-
-function RowProduct({ title, need, have, deficit }) {
-    return (
-        <div className="rounded-md border p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div className="font-medium">{title}</div>
-            <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
-                <Badge variant="secondary">нужно: {fmtG(need)}</Badge>
-                <Badge variant="outline">есть: {fmtG(have)}</Badge>
-                {deficit > 0 ? (
-                    <Badge variant="destructive">не хватает: {fmtG(deficit)}</Badge>
-                ) : (
-                    <Badge variant="secondary">ок</Badge>
-                )}
-            </div>
         </div>
     );
 }

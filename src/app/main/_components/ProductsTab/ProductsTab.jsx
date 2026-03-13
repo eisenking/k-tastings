@@ -1,6 +1,6 @@
 import { getProducts } from "@/app/actions/products/getProducts";
-import { DataTable } from "./data-table";
-import { columns } from "./columns";
+import { DataTable } from "./ProductsDataTable/data-table";
+import { columns } from "./ProductsDataTable/columns";
 
 export default async function ProductsTab() {
 	const products = await getProducts();

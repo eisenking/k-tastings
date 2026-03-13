@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown } from "lucide-react";
+import PreparationsActionsCell from "./PreparationsActionsCell.jsx";
 
 function formatDate(d) {
     try {
@@ -17,6 +18,16 @@ function formatNum(v, digits = 0) {
     return n.toFixed(digits);
 }
 
+function formatPrepCategory(v) {
+    const s = (v || "").toString().trim();
+    if (!s) return "—";
+    if (s === "Крема") return "Крем";
+    if (s === "Бисквиты") return "Бисквит";
+    if (s === "Промочки") return "Промочка";
+    if (s === "Прочее") return "Прочее";
+    return s;
+}
+
 export const columns = [
     {
         accessorKey: "recipeName",
@@ -27,6 +38,20 @@ export const columns = [
             </Button>
         ),
         cell: ({ row }) => <div className="font-medium">{row.original.recipeName}</div>,
+    },
+    {
+        accessorKey: "preparationCategory",
+        header: ({ column }) => (
+            <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+                Тип
+                <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+        ),
+        cell: ({ row }) => (
+            <div className="text-muted-foreground">
+                {formatPrepCategory(row.original.preparationCategory)}
+            </div>
+        ),
     },
     {
         accessorKey: "remainingBase",
@@ -54,24 +79,10 @@ export const columns = [
         header: "Изготовил",
         cell: ({ row }) => <div className="text-muted-foreground">{row.original.userName}</div>,
     },
-    {
-        id: "actions",
-        header: "Действия",
-        cell: ({ row }) => {
-            // позже подключим диалоги: изготовить/списать/удалить
-            return (
-                <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => console.log("produce", row.original)}>
-                        Изготовить
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => console.log("writeoff", row.original)}>
-                        Списать
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => console.log("delete", row.original)}>
-                        Удалить
-                    </Button>
-                </div>
-            );
-        },
-    },
+    	{
+		id: "actions",
+		cell: ({ row, table }) => (
+			<PreparationsActionsCell row={row.original} table={table} />
+		),
+	},
 ];

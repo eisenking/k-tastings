@@ -1,6 +1,6 @@
 "use client";
-
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
     flexRender,
     getCoreRowModel,
@@ -9,11 +9,9 @@ import {
     getSortedRowModel,
     useReactTable,
 } from "@tanstack/react-table";
-
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -22,12 +20,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { DataTablePagination } from "./DataTablePagination";
+import DetailedRecipe from "../../Recipes/DetailedRecipe";
 
-export function DataTable({ columns, data }) {
+export function DataTable({ columns, data, onProduced }) {
+    const router = useRouter();
+
     const [sorting, setSorting] = useState([]);
     const [columnFilters, setColumnFilters] = useState([]);
     const [columnVisibility, setColumnVisibility] = useState({});
     const [rowSelection, setRowSelection] = useState({});
+
+    const [openDetailed, setOpenDetailed] = useState(false);
+    const [selectedRecipeId, setSelectedRecipeId] = useState(null);
 
     const table = useReactTable({
         data,
@@ -46,10 +50,27 @@ export function DataTable({ columns, data }) {
             columnVisibility,
             rowSelection,
         },
+
+        meta: {
+            onQuickAdd: (row) => {
+                setSelectedRecipeId(row.recipeId);
+                setOpenDetailed(true);
+            },
+        },
     });
 
     return (
         <div>
+            <DetailedRecipe
+                open={openDetailed}
+                onOpenChange={setOpenDetailed}
+                recipeId={selectedRecipeId}
+                onProduced={() => {
+                    setOpenDetailed(false);
+                    onProduced?.();
+                }}
+            />
+
             <div className="flex items-center py-2 gap-2">
                 <Input
                     placeholder="Поиск по названию"

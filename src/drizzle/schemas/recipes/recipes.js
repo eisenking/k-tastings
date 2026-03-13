@@ -29,7 +29,6 @@ export const RecipesTable = pgTable(
         // Только для preparation, иначе null
         preparationCategory: preparationCategoryEnum("preparation_category"),
 
-        steps: text("steps"),
         note: text("note"),
 
         isArchived: boolean("is_archived").default(false).notNull(),
