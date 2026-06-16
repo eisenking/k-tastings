@@ -1,0 +1,14 @@
+﻿{
+  "mcpServers": {
+    "postgres": {
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        ".cursor/run-postgres-mcp.ps1"
+      ]
+    }
+  }
+}

@@ -1,0 +1,60 @@
+---
+description: Паттерн server actions — withAction, валидация, транзакции
+globs: src/actions/**/*
+alwaysApply: false
+---
+
+# Server Actions
+
+## Шаблон файла
+
+```js
+"use server";
+
+import { withAction } from "@/lib/utils/action-response";
+import { parseInput } from "@/lib/utils/validation";
+import { requireUser } from "@/lib/auth/session";
+import { assertCanModifyLocation } from "@/lib/auth/rbac";
+import { db } from "@/drizzle/db";
+import { logActivity } from "@/lib/audit/log";
+
+export const myAction = withAction(async (input) => {
+    const user = await requireUser();
+    const data = parseInput(mySchema, input);
+    assertCanModifyLocation(user, data.location);
+
+    const result = await db.transaction(async (tx) => {
+        // бизнес-логика; logActivity({ tx, user, ... }) для мутаций
+        return payload;
+    });
+
+    revalidatePath("/pastry"); // при необходимости
+    return result;
+}, { name: "myAction" });
+```
+
+## Обязательный порядок
+
+1. `requireUser()` — auth
+2. `parseInput(zodSchema, input)` — валидация (схемы в `_shared.js` рядом с action)
+3. `assert*` из `rbac.js` — права
+4. `db.transaction` — мутации (чтение можно без транзакции)
+5. `logActivity` — для изменений данных (передавать `tx` внутри транзакции)
+6. `revalidatePath` — если меняются данные для RSC
+
+## Ответы и ошибки
+
+- `withAction` возвращает `{ ok: true, data }` или `{ ok: false, error }`
+- Бизнес-ошибки — `throw new XxxError(...)` из `@/lib/utils/errors` (ловит `withAction`)
+- На клиенте: проверять `res.ok` перед использованием `res.data`
+- В RSC: `unwrapAction` / `unwrapActionOr` из `@/lib/utils/unwrapAction`
+
+## Организация
+
+- Один action — один файл в `src/actions/<domain>/`
+- Общие zod-схемы и хелперы — в `_shared.js` той же папки
+- Именование: `getX`, `createX`, `updateX`, `archiveX` — глагол + сущность
+
+## Пример
+
+См. `src/actions/stock/products/addProduct.js`.

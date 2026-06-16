@@ -1,0 +1,57 @@
+---
+description: Обзор проекта magnum-opus — стек, структура, ограничения
+alwaysApply: true
+---
+
+# Magnum Opus
+
+ERP для кондитерской: склад, рецепты, производство, заказы, контент сайта.
+
+## Стек
+
+- Next.js 16 (App Router), React 19, Server Actions
+- PostgreSQL + Drizzle ORM (`src/drizzle/`)
+- better-auth (`src/lib/auth/`)
+- shadcn/ui (new-york), Tailwind 4, `@tanstack/react-table`
+- Алиас импортов: `@/*` → `src/*`
+
+## Структура
+
+```
+src/actions/       — server actions по доменам (stock, recipes, admin…)
+src/app/           — маршруты; page-specific UI в _components/
+src/components/    — ui/ (shadcn), shared/, layout/
+src/drizzle/       — schema, migrations, db.ts
+src/lib/           — auth, utils, hooks, helpers, audit
+```
+
+## Дашборды
+
+`/admin`, `/pastry`, `/cafe`, `/office`, `/website` — внутри `src/app/(dashboard)/`.
+
+## Конвенции
+
+- UI-тексты и сообщения об ошибках — **на русском**
+- Actions — в основном `.js`; auth/schema/UI — `.ts`/`.tsx`. Не массово переводить JS→TS без запроса
+- Не редактировать `src/components/ui/` без необходимости (генерируется shadcn)
+- Минимальный diff; не трогать несвязанные файлы
+- Тестов в проекте нет — не добавлять без запроса
+- Не раскомментировать старые закомментированные блоки без явного запроса
+
+## Актуальная структура (рефакторинг)
+
+Использовать **новые** пути. Устаревшие (удалены): `src/app/main/`, `src/app/actions/`, `src/app/middleware.ts`.
+
+## Источники истины
+
+- Роли: `src/lib/constants/roles.js`
+- RBAC: `src/lib/auth/rbac.js`
+- Navbar-ссылки: `src/components/layout/navbar/nav-links.ts` (импортирует `ROLES` из `roles.js`)
+
+## Окружение и БД
+
+- Переменные: локальный `.env` в корне (см. AGENTS.md → «Переменные .env»)
+- Миграции: `npm run db:migrate` (не запускать без подтверждения пользователя)
+- Схема после правок: `npm run db:generate` → затем migrate
+- Просмотр данных: `npm run db:studio`
+- PostgreSQL MCP: [docs/mcp-postgres.md](docs/mcp-postgres.md) — агент читает dev-БД из чата

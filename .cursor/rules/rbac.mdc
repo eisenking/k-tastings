@@ -1,0 +1,55 @@
+---
+description: Роли, локации и проверки доступа (RBAC)
+globs: src/actions/**/*,src/lib/auth/**/*
+alwaysApply: false
+---
+
+# RBAC
+
+Источник истины: `src/lib/constants/roles.js` + `src/lib/auth/rbac.js`.
+
+## Роли
+
+| Роль | Код | Описание |
+|------|-----|----------|
+| Админ | `admin` | Полный доступ, пользователи, журнал активности |
+| Офис | `office` | Финансы, заказы, сайт (`/office`, `/website`). **Без** доступа к складским локациям |
+| Торты | `pastry` | Только локация `pastry` |
+| Кафе | `cafe` | Только локация `cafe` |
+
+## Локации
+
+- `pastry`, `cafe` — изолированные склады
+- `pastry` / `cafe` — только своя локация
+- `office` — **не** имеет доступа к `pastry`/`cafe` (только `assertCanManageWebsite`, `assertCanManageOrders`, `assertCanViewFinance`)
+
+## Правила (использовать готовые функции, не дублировать if)
+
+| Операция | Функция |
+|----------|---------|
+| Просмотр локации | `canViewLocation` / `assertCanViewLocation` |
+| Изменение в локации | `canModifyLocation` / `assertCanModifyLocation` |
+| Перемещения между локациями | `canTransfer` / `assertCanTransfer` (admin) |
+| Управление пользователями | `canManageUsers` / `assertAdmin` |
+| Журнал активности | `canViewActivity` / `assertCanViewActivity` |
+| Финансы | `canViewFinance` / `assertCanViewFinance` |
+| Контент сайта | `canManageWebsite` / `assertCanManageWebsite` |
+| Заказы | `canManageOrders` / `assertCanManageOrders` |
+
+## В actions
+
+```js
+import { requireUser } from "@/lib/auth/session";
+import { assertCanModifyLocation } from "@/lib/auth/rbac";
+
+const user = await requireUser();
+assertCanModifyLocation(user, data.location);
+```
+
+`ForbiddenError` и `UnauthorizedError` ловит `withAction` и отдаёт клиенту message.
+
+## Защита маршрутов
+
+Middleware нет — auth/RBAC на уровне actions и (при необходимости) страниц через `getServerSession`.
+
+Navbar скрывает ссылки по роли (`nav-links.ts` → `ROLES` из `roles.js`). Это UI-фильтр; server actions всё равно проверяют права через `assert*`.
